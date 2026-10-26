@@ -11,9 +11,9 @@ const recorded_subscription:RequestHandler=catchAsync(async(req , res)=>{
 
        const result=await currentSubscriptionServices.recorded_subscription_IntoDb(req.body, req.user.id);
          sendResponse(res, {
-         success: true,
-         statusCode: status.CREATED,
-         message: "Successfully Recorded Subscription",
+         success: result.success,
+         statusCode: result.success ? status.CREATED : status.CONFLICT,
+         message: result.message,
          data: result,
        });
 
