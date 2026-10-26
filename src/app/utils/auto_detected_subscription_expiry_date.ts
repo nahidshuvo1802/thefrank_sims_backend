@@ -11,7 +11,11 @@ const auto_detected_subscription_expiry_date = async () => {
       .find(
         {
           isActive: true,
-          createdAt: { $lt: expiryThreshold },
+          typesubscription: "free",
+          $or: [
+            { expiresAt: { $lte: currentTime } },
+            { expiresAt: { $exists: false }, createdAt: { $lte: expiryThreshold } },
+          ],
         },
         { _id: 1 }
       )
