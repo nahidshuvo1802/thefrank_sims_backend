@@ -45,6 +45,11 @@ const CurrentSubscriptionSchema = new Schema<TCurrentSubscription, CurrentSubscr
       type: Boolean,
       default: false,
     },
+    expiresAt: {
+      type: Date,
+      required: false,
+      index: true,
+    },
   },
   {
     timestamps: true,

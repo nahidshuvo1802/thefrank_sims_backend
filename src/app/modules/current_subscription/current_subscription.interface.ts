@@ -8,6 +8,7 @@ export interface TCurrentSubscription {
     typesubscription?: "free" | "paid"
     subscriptionPriceId: Types.ObjectId;
     isDelete:Boolean;   
+    expiresAt?: Date;
 };
 
 export interface CurrentSubscriptionModel extends Model<TCurrentSubscription> {
