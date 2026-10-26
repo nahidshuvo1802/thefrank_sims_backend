@@ -6,6 +6,8 @@ import currentsubscriptions from "./current_subscription.model";
 import QueryBuilder from "../../builder/QueryBuilder";
 import mongoose from "mongoose";
 
+const FREE_TRIAL_DAYS = 60;
+
 const recorded_subscription_IntoDb = async (
   payload: TCurrentSubscription,
   userId: string
@@ -21,6 +23,7 @@ const recorded_subscription_IntoDb = async (
           }
         : {
             typesubscription: subscriptionStatus.free,
+            expiresAt: new Date(Date.now() + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000),
           };
 
     // Check if user already has this subscription type
@@ -60,8 +63,7 @@ const recorded_subscription_IntoDb = async (
           ? "Enjoy Your Free Trial 60 Days Subscription"
           : "Successfully recorded your Paid Subscription",
       data: {
-        payload: cleanedPayload,
-        userId,
+        subscription: result,
       },
     };
   } catch (error: any) {
@@ -82,6 +84,24 @@ const findByMyActiveCurrentSubscriptionIntoDb = async (userId: string) => {
     } else {
       userIdMatch = userId;
     }
+
+    // Enforce expiry during every entitlement check; the cron is only a backup.
+    // The createdAt fallback keeps trials made before expiresAt was introduced correct.
+    const legacyExpiryThreshold = new Date(
+      Date.now() - FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000
+    );
+    await currentsubscriptions.updateMany(
+      {
+        userId: userIdMatch,
+        typesubscription: subscriptionStatus.free,
+        isActive: true,
+        $or: [
+          { expiresAt: { $lte: new Date() } },
+          { expiresAt: { $exists: false }, createdAt: { $lte: legacyExpiryThreshold } },
+        ],
+      },
+      { $set: { isActive: false } }
+    );
 
     const agg = await currentsubscriptions.aggregate([
       {
@@ -140,6 +160,12 @@ const findByMyActiveCurrentSubscriptionIntoDb = async (userId: string) => {
           subscriptionId: 1,
           subscriptionPriceId: 1,
           createdAt: 1,
+          expiresAt: {
+            $ifNull: [
+              "$expiresAt",
+              { $add: ["$createdAt", FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000] }
+            ]
+          },
           subscriptionPrice: {
             $arrayElemAt: [
               {
